@@ -1,0 +1,9 @@
+.vscode/
+.idea/
+.venv/
+__pycharm__/
+
+.ct
+
+*.lock
+
