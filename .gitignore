@@ -1,7 +1,7 @@
 .vscode/
 .idea/
 .venv/
-__pycharm__/
+__pycache__/
 
 /books/
 
