@@ -1,10 +1,19 @@
+from typing import Callable
 from starlette.responses import PlainTextResponse
+from pydantic import BaseModel
+from enum import StrEnum
+
+# https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope
 
 
-async def app(scope, receive, send):
+async def app(scope: dict, receive: Callable, send: Callable[dict]):
 
-    # r = PlainTextResponse(b"Hi there")
-    # print(r)
+    print(dict(scope))
+    print("\n\n")
+
+    r = await receive()
+    print(r)
+    print("\n\n")
 
     await send({
         "type": "http.response.start",
@@ -16,6 +25,6 @@ async def app(scope, receive, send):
 
     await send({
         "type": "http.response.body",
-        "status":
+        "body": b"hello"
     })
 
