@@ -1,4 +1,4 @@
-from typing import Iterable, Any
+from typing import Iterable, Any, Literal, Callable
 from typing_extensions import TypedDict
 from enum import StrEnum
 from pydantic import (
@@ -7,16 +7,17 @@ from pydantic import (
     model_validator,
     ValidationError
 )
+from http import HTTPStatus
 
 # https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope
 
 
-class ASGIType(StrEnum):
+class ScopeType(StrEnum):
     http = "http"
     websocket = "websocket"
 
 
-class ASGIVersion(TypedDict):
+class ScopeVersion(TypedDict):
     # Version of the ASGI spec
     version: str
 
@@ -32,12 +33,12 @@ class HTTPVersion(StrEnum):
     http2 = "2"
 
 
-class ASGIScope(BaseModel):
+class Scope(BaseModel):
 
     # "http" or "websocket"
-    type: ASGIType
+    type: ScopeType
 
-    asgi: ASGIVersion
+    asgi: ScopeVersion
 
     # For websocket: NOT "1.0", ONLY "1.1" or "2"
     http_version: HTTPVersion
@@ -97,8 +98,8 @@ class ASGIScope(BaseModel):
     subprotocols: tuple[str] = []
 
     @model_validator(mode="after")
-    def validate_subprotocols(self) -> 'ASGIScope':
-        if self.type != ASGIType.websocket and self.subprotocols:
+    def validate_subprotocols(self) -> 'Scope':
+        if self.type != ScopeType.websocket and self.subprotocols:
             raise ValidationError("subprotocols разрешены только для websocket")
         return self
 
@@ -106,4 +107,52 @@ class ASGIScope(BaseModel):
     # the lifespan corresponding to this request. (See Lifespan Protocol).
     # Optional; if missing the server does not support this feature.
     state: dict[str, Any] | None
+
+
+class HTTPRequest(BaseModel):
+    type: Literal["http.request"]
+    body: bytes = b""
+    more_body: bool = False
+
+
+class HTTPDisconnect(BaseModel):
+    type: Literal["http.disconnect"]
+
+
+class HTTPResponseStart(BaseModel):
+    type: Literal["http.response.start"] = "http.response.start"
+    status: HTTPStatus
+    headers: list[list[bytes]]
+
+    # Signifies if the application will send trailers.
+    # If True, the server must wait until it receives
+    # a "http.response.trailers" message after the Response Body event.
+    # Optional; if missing defaults to False.
+    trailers: bool = False
+
+
+class HTTPResponseBody(BaseModel):
+    type: Literal["http.response.body"] = "http.response.body"
+    body: bytes = b""
+
+    # Signifies if there is additional content to come (as part of a Response Body message).
+    # Optional; if missing defaults to False
+    more_body: bool = False
+
+
+async def receive_event(receive: Callable) -> HTTPRequest | HTTPDisconnect:
+    e = await receive()
+    match e.get("type"):
+        case "http.request":
+            return HTTPRequest.model_validate(e)
+        case "http.disconnect":
+            return HTTPDisconnect.model_validate(e)
+        case _:
+            raise ValueError(f"Неизвестный тип сообщения {e.get('type')}")
+
+
+async def send_event(send: Callable, event: HTTPResponseStart | HTTPResponseBody):
+    if not isinstance(event, HTTPResponseStart | HTTPResponseBody):
+        raise ValueError(f"Тип event должен соответствовать HTTPResponseStart | HTTPResponseBody")
+    return await send(event.model_dump())
 
