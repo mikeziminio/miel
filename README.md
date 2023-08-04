@@ -13,6 +13,9 @@ uvicorn main:app
 ```
 
 daphne
-
-
 hypercorn 
+
+
+== TODO
+
+1. Поддержка Lifespan: https://asgi.readthedocs.io/en/latest/specs/lifespan.html

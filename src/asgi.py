@@ -1,6 +1,12 @@
-from typing import TypedDict, Iterable, Any
+from typing import Iterable, Any
+from typing_extensions import TypedDict
 from enum import StrEnum
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    field_validator,
+    model_validator,
+    ValidationError
+)
 
 # https://asgi.readthedocs.io/en/latest/specs/www.html#http-connection-scope
 
@@ -36,6 +42,20 @@ class ASGIScope(BaseModel):
     # For websocket: NOT "1.0", ONLY "1.1" or "2"
     http_version: HTTPVersion
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_http_version(cls, data: dict) -> dict:
+        if data.get("type") == "websocket":
+            # согласно спецификации значение по-умолчанию для http_version
+            # устанавливается только в случае type="websocket"
+            if not data.get("http_version"):
+                data["http_version"] = "1.1"
+            else:
+                # для websocket недоступно http 1.0
+                if data["http_version"] not in ("1.1", "2"):
+                    raise ValidationError("Для websocket недоступно HTTP 1.0")
+        return data
+
     # The HTTP method name, uppercased
     method: str
 
@@ -65,13 +85,22 @@ class ASGIScope(BaseModel):
     root_path: str = ""
 
     # headers
-    headers: Iterable[bytes, bytes]
+    headers: tuple[tuple[bytes, bytes], ...]          # TODO: возможно, преобразовать в tuple
 
     # client [host, port]
-    client: Iterable[str, int]
+    client: tuple[str, int]
 
     # server [host, port] or server [unix socket, None]
-    server: Iterable[str, int | None]
+    server: tuple[str, int | None]
+
+    # Websocket only
+    subprotocols: tuple[str] = []
+
+    @model_validator(mode="after")
+    def validate_subprotocols(self) -> 'ASGIScope':
+        if self.type != ASGIType.websocket and self.subprotocols:
+            raise ValidationError("subprotocols разрешены только для websocket")
+        return self
 
     # A copy of the namespace passed into
     # the lifespan corresponding to this request. (See Lifespan Protocol).
