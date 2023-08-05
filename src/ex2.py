@@ -1,5 +1,6 @@
 from miel.responses import HTMLResponse
 from miel.applications import Application
+from pydantic import BaseModel
 
 app = Application()
 
@@ -9,7 +10,6 @@ async def something():
     return 1
 
 
-@app.post("/hello/{my}")
-async def something(my: str):
+@app.post("/hello/my")
+async def something():
     return 1
-

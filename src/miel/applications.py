@@ -22,8 +22,12 @@ class Application:
 
     async def __call__(self, _scope, receive, send):
         scope = Scope.model_validate(_scope)
-        event = await receive_event(receive)
 
+        # scope.method
+        # scope.path
+        # scope.query_string
+
+        event = await receive_event(receive)
         if isinstance(event, HTTPRequest):
             response = HTMLResponse(body=b"Hello, it's response")
             await response(scope, receive, send)
