@@ -22,7 +22,7 @@ class Response:
         if status is not None:
             self.status = status
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, send):
 
         if not self.content_type:
             raise ValueError(f"content_type должен быть заполнен")
