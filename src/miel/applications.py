@@ -27,9 +27,17 @@ def is_async_callable(obj: Any) -> Any:
 class Application:
 
     router: Router
+    default_response_class: type[Response]
+    default_encoding: str
 
-    def __init__(self):
+    def __init__(
+            self,
+            default_response_class=HTMLResponse,
+            default_encoding="utf-8"
+    ):
         self.router = Router()
+        self.default_response_class = default_response_class
+        self.default_encoding = default_encoding
 
     async def __call__(self, _scope, receive, send):
         scope = Scope.model_validate(_scope)
@@ -53,8 +61,9 @@ class Application:
             if isinstance(response, Response):
                 await response(send)
             else:
-                # TODO: поставить тут "html / json" - по умолчанию
-                await HTMLResponse(body=response)(send)
+                if not(isinstance(response, bytes)):
+                    response = bytes(str(response), self.default_encoding)
+                await self.default_response_class(body=response)(send)
 
         elif isinstance(event, HTTPDisconnect):
             ...

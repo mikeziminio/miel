@@ -6,16 +6,16 @@ app = Application()
 
 @app.get("/")
 async def something():
-    return b"1"
+    return 1
 
 
 @app.get("/hello")
 async def something():
-    return b"2"
+    return 2
 
 
-@app.post("/hello/{my}")
-async def something(my: str):
-    return b"__" + bytes(my, "utf-8") + b"__"
+@app.post("/hello/{name}")
+async def something(name: str):
+    return f"Hello, {name}!"
 
 
